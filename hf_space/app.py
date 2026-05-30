@@ -7,7 +7,7 @@ from huggingface_hub import InferenceClient
 
 # ── Model setup ───────────────────────────────────────────────────────────────
 HF_TOKEN = os.environ.get("HF_TOKEN")
-MODEL = os.environ.get("HF_MODEL", "mistralai/Mistral-7B-Instruct-v0.3")
+MODEL = os.environ.get("HF_MODEL", "HuggingFaceH4/zephyr-7b-beta")
 
 client = InferenceClient(token=HF_TOKEN)
 
@@ -130,7 +130,7 @@ with gr.Blocks(title="AI Code Review Bot", theme=gr.themes.Soft()) as demo:
     # 🔍 AI Code Review Bot
     **P06 · Staff SRE + AI Engineer Portfolio**
 
-    Paste a git diff to get an automated code review powered by **Mistral 7B** (HuggingFace Inference API).
+    Paste a git diff to get an automated code review powered by **Zephyr 7B** (HuggingFace Inference API).
     The production version of this bot posts inline comments directly on GitHub PRs via webhook.
     """)
 
