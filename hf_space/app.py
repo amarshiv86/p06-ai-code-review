@@ -68,8 +68,7 @@ def parse_response(raw: str) -> dict:
     return json.loads(match.group())
 
 
-def format_output(result: dict) -> tuple[str, str]:
-    """Return (summary_md, comments_md)."""
+def format_output(result: dict) -> tuple:
     severity = result.get("overall_severity", "info")
     emoji = SEVERITY_EMOJI.get(severity, "🔵")
 
@@ -96,23 +95,26 @@ def format_output(result: dict) -> tuple[str, str]:
     return summary_md, comments_md
 
 
-def run_review(diff: str, pr_title: str) -> tuple[str, str, str]:
+def run_review(diff: str, pr_title: str) -> tuple:
     if not diff.strip():
         return "⚠️ Please paste a git diff above.", "", ""
 
     if not HF_TOKEN:
         return "⚠️ HF_TOKEN secret not set in Space settings.", "", ""
 
-    prompt = f"<s>[INST] {SYSTEM_PROMPT}\n\nPR Title: {pr_title}\n\nGit diff:\n```\n{diff[:10000]}\n``` [/INST]"
-
     try:
-        raw = client.text_generation(
-            prompt,
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"PR Title: {pr_title}\n\nGit diff:\n```\n{diff[:10000]}\n```"},
+        ]
+
+        response = client.chat_completion(
+            messages=messages,
             model=MODEL,
-            max_new_tokens=2048,
+            max_tokens=2048,
             temperature=0.1,
-            repetition_penalty=1.1,
         )
+        raw = response.choices[0].message.content
         result = parse_response(raw)
         summary_md, comments_md = format_output(result)
         raw_json = json.dumps(result, indent=2)
