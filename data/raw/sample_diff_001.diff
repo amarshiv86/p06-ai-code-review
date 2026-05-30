@@ -21,3 +21,4 @@ index 1234567..abcdefg 100644
 -    return plain == hashed
 +    import hashlib
 +    return hashlib.sha256(plain.encode()).hexdigest() == hashed
+
