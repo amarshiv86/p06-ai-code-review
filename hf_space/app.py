@@ -3,16 +3,17 @@ import os
 import re
 
 import gradio as gr
-from huggingface_hub import InferenceClient
+import requests
 
 # ── Model setup ───────────────────────────────────────────────────────────────
 HF_TOKEN = os.environ.get("HF_TOKEN")
-MODEL = os.environ.get("HF_MODEL", "HuggingFaceH4/zephyr-7b-beta")
 
-client = InferenceClient(token=HF_TOKEN)
+# Qwen2.5-Coder is confirmed working on HF free tier via direct HTTP
+MODEL = "Qwen/Qwen2.5-Coder-7B-Instruct"
+API_URL = f"https://api-inference.huggingface.co/models/{MODEL}/v1/chat/completions"
 
 SYSTEM_PROMPT = """You are a senior software engineer performing a code review.
-Analyze the provided git diff and return ONLY a JSON object — no markdown, no explanation outside the JSON.
+Analyze the provided git diff and return ONLY a JSON object — no markdown, no preamble.
 
 JSON schema:
 {
@@ -21,7 +22,7 @@ JSON schema:
   "comments": [
     {
       "path": "file/path.py",
-      "line": <line number>,
+      "line": <integer line number>,
       "severity": "critical" | "major" | "minor" | "info",
       "category": "security" | "performance" | "correctness" | "style" | "maintainability",
       "body": "Specific actionable feedback with suggested fix."
@@ -29,8 +30,8 @@ JSON schema:
   ]
 }
 
-Severity: critical=security/crash, major=logic bug, minor=code smell, info=suggestion.
-Return valid JSON only."""
+Severity guide: critical=security/crash risk, major=logic bug, minor=code smell, info=suggestion.
+Return valid JSON only. No explanation outside the JSON."""
 
 SEVERITY_EMOJI = {"critical": "🔴", "major": "🟠", "minor": "🟡", "info": "🔵"}
 
@@ -60,78 +61,84 @@ index 1234567..abcdefg 100644
 '''
 
 
+def call_llm(diff: str, pr_title: str) -> str:
+    """Call HF Inference API via direct HTTP — works on free tier."""
+    headers = {
+        "Authorization": f"Bearer {HF_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": MODEL,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"PR Title: {pr_title}\n\nGit diff:\n```\n{diff[:8000]}\n```"},
+        ],
+        "max_tokens": 1500,
+        "temperature": 0.1,
+        "stream": False,
+    }
+    resp = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+    resp.raise_for_status()
+    return resp.json()["choices"][0]["message"]["content"]
+
+
 def parse_response(raw: str) -> dict:
     cleaned = re.sub(r"```(?:json)?\s*", "", raw).strip()
     match = re.search(r"\{.*\}", cleaned, re.DOTALL)
     if not match:
-        raise ValueError("No JSON found in model response")
+        raise ValueError(f"No JSON found. Model returned:\n{raw[:300]}")
     return json.loads(match.group())
 
 
 def format_output(result: dict) -> tuple:
     severity = result.get("overall_severity", "info")
     emoji = SEVERITY_EMOJI.get(severity, "🔵")
-
-    summary_md = f"""## {emoji} Overall: `{severity.upper()}`
-
-{result.get('summary', '')}
-
-**{len(result.get('comments', []))} inline comment(s) found**
-"""
-
-    if not result.get("comments"):
+    summary_md = (
+        f"## {emoji} Overall: `{severity.upper()}`\n\n"
+        f"{result.get('summary', '')}\n\n"
+        f"**{len(result.get('comments', []))} inline comment(s) found**"
+    )
+    comments = result.get("comments", [])
+    if not comments:
         comments_md = "_No specific inline comments._"
     else:
         lines = []
-        for c in result["comments"]:
+        for c in comments:
             e = SEVERITY_EMOJI.get(c.get("severity", "info"), "🔵")
             lines.append(
                 f"### {e} `{c.get('severity','info').upper()}` · {c.get('category','').title()}\n"
-                f"**File:** `{c.get('path', '?')}` · Line {c.get('line', '?')}\n\n"
-                f"{c.get('body', '')}\n"
+                f"**File:** `{c.get('path','?')}` · Line {c.get('line','?')}\n\n"
+                f"{c.get('body','')}"
             )
-        comments_md = "\n---\n".join(lines)
-
+        comments_md = "\n\n---\n\n".join(lines)
     return summary_md, comments_md
 
 
 def run_review(diff: str, pr_title: str) -> tuple:
     if not diff.strip():
         return "⚠️ Please paste a git diff above.", "", ""
-
     if not HF_TOKEN:
-        return "⚠️ HF_TOKEN secret not set in Space settings.", "", ""
-
+        return "⚠️ HF_TOKEN secret not set in Space Settings → Repository secrets.", "", ""
     try:
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"PR Title: {pr_title}\n\nGit diff:\n```\n{diff[:10000]}\n```"},
-        ]
-
-        response = client.chat_completion(
-            messages=messages,
-            model=MODEL,
-            max_tokens=2048,
-            temperature=0.1,
-        )
-        raw = response.choices[0].message.content
+        raw = call_llm(diff, pr_title)
         result = parse_response(raw)
         summary_md, comments_md = format_output(result)
-        raw_json = json.dumps(result, indent=2)
-        return summary_md, comments_md, raw_json
-
+        return summary_md, comments_md, json.dumps(result, indent=2)
+    except requests.HTTPError as e:
+        return f"❌ API Error {e.response.status_code}: {e.response.text[:300]}", "", ""
     except Exception as e:
         return f"❌ Error: {str(e)}", "", ""
 
 
-# ── Gradio UI ─────────────────────────────────────────────────────────────────
+# ── Gradio UI ──────────────────────────────────────────────────────────────────
 with gr.Blocks(title="AI Code Review Bot", theme=gr.themes.Soft()) as demo:
     gr.Markdown("""
     # 🔍 AI Code Review Bot
     **P06 · Staff SRE + AI Engineer Portfolio**
 
-    Paste a git diff to get an automated code review powered by **Zephyr 7B** (HuggingFace Inference API).
-    The production version of this bot posts inline comments directly on GitHub PRs via webhook.
+    Paste a git diff to get an automated code review powered by **Qwen2.5-Coder 7B**
+    (HuggingFace Inference API · free tier). The production bot posts inline comments
+    directly on GitHub PRs via webhook.
     """)
 
     with gr.Row():
@@ -171,10 +178,11 @@ with gr.Blocks(title="AI Code Review Bot", theme=gr.themes.Soft()) as demo:
     **How the production bot works:**
     1. Developer opens a PR on GitHub
     2. GitHub Actions triggers the webhook bot
-    3. Bot fetches the diff, sends to Mistral 7B, parses structured JSON
+    3. Bot fetches the diff → sends to LLM → parses structured JSON
     4. Posts inline comments with severity labels directly on the PR
 
-    [GitHub Repo](https://github.com/amarshiv86/p06-ai-code-review) · Part of the [Staff SRE · AI Engineer Portfolio](https://github.com/amarshiv86)
+    [GitHub Repo](https://github.com/amarshiv86/p06-ai-code-review) ·
+    [Staff SRE · AI Engineer Portfolio](https://github.com/amarshiv86)
     """)
 
 demo.launch()
