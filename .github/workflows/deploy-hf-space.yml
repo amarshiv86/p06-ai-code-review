@@ -27,7 +27,7 @@ jobs:
 
           # Create the Space if it doesn't exist yet
           api.create_repo(
-              repo_id="yourusername/p06-ai-code-review",
+              repo_id="amarshiv86/p06-ai-code-review",
               repo_type="space",
               space_sdk="gradio",
               exist_ok=True,
@@ -37,7 +37,7 @@ jobs:
           # Upload ONLY the hf_space/ folder — nothing else from the repo
           api.upload_folder(
               folder_path="hf_space",
-              repo_id="yourusername/p06-ai-code-review",
+              repo_id="amarshiv86/p06-ai-code-review",
               repo_type="space",
           )
 

@@ -27,7 +27,7 @@ jobs:
 
           # Create the Dataset repo if it doesn't exist yet
           api.create_repo(
-              repo_id="yourusername/p06-code-review-dataset",
+              repo_id="amarshiv86/p06-code-review-dataset",
               repo_type="dataset",
               exist_ok=True,
               private=False,
@@ -36,7 +36,7 @@ jobs:
           # Upload ONLY the data/ folder
           api.upload_folder(
               folder_path="data",
-              repo_id="yourusername/p06-code-review-dataset",
+              repo_id="amarshiv86/p06-code-review-dataset",
               repo_type="dataset",
           )
 

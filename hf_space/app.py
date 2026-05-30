@@ -172,7 +172,7 @@ with gr.Blocks(title="AI Code Review Bot", theme=gr.themes.Soft()) as demo:
     3. Bot fetches the diff, sends to Mistral 7B, parses structured JSON
     4. Posts inline comments with severity labels directly on the PR
 
-    [GitHub Repo](https://github.com/yourusername/p06-ai-code-review) · Part of the [Staff SRE · AI Engineer Portfolio](https://github.com/yourusername)
+    [GitHub Repo](https://github.com/amarshiv86/p06-ai-code-review) · Part of the [Staff SRE · AI Engineer Portfolio](https://github.com/amarshiv86)
     """)
 
 demo.launch()
