@@ -1,0 +1,45 @@
+name: Deploy HF Space
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "hf_space/**"   # only redeploy when Space files change
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install huggingface-hub CLI
+        run: pip install huggingface-hub
+
+      - name: Push hf_space/ to HuggingFace Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'EOF'
+          from huggingface_hub import HfApi
+          import os
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+
+          # Create the Space if it doesn't exist yet
+          api.create_repo(
+              repo_id="yourusername/p06-ai-code-review",
+              repo_type="space",
+              space_sdk="gradio",
+              exist_ok=True,
+              private=False,
+          )
+
+          # Upload ONLY the hf_space/ folder — nothing else from the repo
+          api.upload_folder(
+              folder_path="hf_space",
+              repo_id="yourusername/p06-ai-code-review",
+              repo_type="space",
+          )
+
+          print("HF Space deployed successfully")
+          EOF

@@ -1,0 +1,30 @@
+{
+  "diff_id": "sample_001",
+  "pr_title": "Fix SQL injection vulnerability in auth module",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "overall_severity": "critical",
+  "summary": "A hardcoded secret key was found which is a critical security vulnerability. The SQL injection fix using parameterized queries is a good improvement, and the password hashing upgrade is positive.",
+  "comments": [
+    {
+      "path": "auth.py",
+      "line": 4,
+      "severity": "critical",
+      "category": "security",
+      "body": "SECRET_KEY is hardcoded in source code. This will be exposed in version control history. Use os.getenv('SECRET_KEY') and store the value in environment variables or a secrets manager."
+    },
+    {
+      "path": "auth.py",
+      "line": 9,
+      "severity": "info",
+      "category": "correctness",
+      "body": "Good fix using parameterized query to prevent SQL injection. Consider also adding connection pooling for production use."
+    },
+    {
+      "path": "auth.py",
+      "line": 14,
+      "severity": "minor",
+      "category": "performance",
+      "body": "Import statement inside a function is evaluated on every call. Move 'import hashlib' to the top of the file."
+    }
+  ]
+}

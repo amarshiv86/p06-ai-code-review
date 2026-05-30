@@ -1,0 +1,44 @@
+name: Deploy HF Dataset
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/**"       # only redeploy when data files change
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install huggingface-hub CLI
+        run: pip install huggingface-hub
+
+      - name: Push data/ to HuggingFace Dataset
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'EOF'
+          from huggingface_hub import HfApi
+          import os
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+
+          # Create the Dataset repo if it doesn't exist yet
+          api.create_repo(
+              repo_id="yourusername/p06-code-review-dataset",
+              repo_type="dataset",
+              exist_ok=True,
+              private=False,
+          )
+
+          # Upload ONLY the data/ folder
+          api.upload_folder(
+              folder_path="data",
+              repo_id="yourusername/p06-code-review-dataset",
+              repo_type="dataset",
+          )
+
+          print("HF Dataset deployed successfully")
+          EOF

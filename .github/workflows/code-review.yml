@@ -1,0 +1,30 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Trigger AI Code Review Bot
+        run: |
+          curl -s -X POST "${{ secrets.CODE_REVIEW_BOT_URL }}/webhook" \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: pull_request" \
+            -d '{
+              "action": "${{ github.event.action }}",
+              "pull_request": {
+                "number": ${{ github.event.pull_request.number }},
+                "title": "${{ github.event.pull_request.title }}",
+                "head": { "sha": "${{ github.event.pull_request.head.sha }}" }
+              },
+              "repository": {
+                "full_name": "${{ github.repository }}"
+              }
+            }'

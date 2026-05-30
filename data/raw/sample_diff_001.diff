@@ -1,0 +1,23 @@
+diff --git a/auth.py b/auth.py
+index 1234567..abcdefg 100644
+--- a/auth.py
++++ b/auth.py
+@@ -1,12 +1,16 @@
++import os
+ import sqlite3
+
++SECRET_KEY = "hardcoded_secret_abc123"
++
+ def get_user(user_id):
+-    conn = sqlite3.connect("prod.db")
+-    cursor = conn.cursor()
+-    cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
++    conn = sqlite3.connect(os.getenv("DB_PATH", "prod.db"))
++    cursor = conn.cursor()
++    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+     return cursor.fetchone()
+
+ def check_password(plain, hashed):
+-    return plain == hashed
++    import hashlib
++    return hashlib.sha256(plain.encode()).hexdigest() == hashed
