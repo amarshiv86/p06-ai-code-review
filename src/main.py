@@ -26,9 +26,9 @@ _stats = {"reviews_run": 0, "start_time": time.time()}
 
 
 def verify_github_signature(payload: bytes, signature: str) -> bool:
-    secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
+    secret = os.environ.get("WEBHOOK_SECRET", "")
     if not secret:
-        logger.warning("GITHUB_WEBHOOK_SECRET not set — skipping verification")
+        logger.warning("WEBHOOK_SECRET not set — skipping verification")
         return True
     expected = "sha256=" + hmac.new(
         secret.encode(), payload, hashlib.sha256
