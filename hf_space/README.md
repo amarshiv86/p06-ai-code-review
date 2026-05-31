@@ -2,7 +2,7 @@
 title: P06 AI Code Review Bot — Demo
 emoji: 🔍
 colorFrom: green
-colorTo: teal
+colorTo: blue
 sdk: gradio
 sdk_version: 5.29.0
 app_file: app.py
